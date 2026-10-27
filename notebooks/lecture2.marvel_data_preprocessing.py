@@ -1,7 +1,7 @@
 # Databricks notebook source
 
 # MAGIC %pip install -e ..
-# MAGIC %restart_python
+# MAGIC %restart_python 
 
 # COMMAND ----------
 # from pathlib import Path
@@ -11,11 +11,14 @@
 # COMMAND ----------
 import pandas as pd
 import yaml
+from dotenv import find_dotenv, load_dotenv
 from loguru import logger
-from pyspark.sql import SparkSession
 
 from marvel_characters.config import ProjectConfig
 from marvel_characters.data_processor import DataProcessor
+
+# Load environment variables from .env
+load_dotenv(find_dotenv(), override=True)
 
 config = ProjectConfig.from_yaml(config_path="../project_config_marvel.yml", env="dev")
 
@@ -24,8 +27,13 @@ logger.info(yaml.dump(config, default_flow_style=False))
 
 # COMMAND ----------
 
-# Load the Marvel characters dataset
-spark = SparkSession.builder.getOrCreate()
+# Initialize Spark session using Databricks Connect Serverless (or fallback to SparkSession on a cluster)
+try:
+    from databricks.connect import DatabricksSession
+    spark = DatabricksSession.builder.serverless().getOrCreate()
+except (ImportError, Exception):
+    from pyspark.sql import SparkSession
+    spark = SparkSession.builder.getOrCreate()
 
 filepath = "../data/marvel_characters_dataset.csv"
 
@@ -63,4 +71,4 @@ data_processor.save_to_catalog(X_train, X_test)
 # Enable change data feed (only once!)
 logger.info("Enable change data feed")
 data_processor.enable_change_data_feed()
-# COMMAND ---------- 
+# COMMAND ----------
